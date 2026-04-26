@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logguard-api"
+version = "0.1.0"
+description = "CLI and FastAPI service for suspicious SSH login analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Saina Kakkar" }]
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.scripts]
+logguard = "logguard.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
