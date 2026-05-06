@@ -1,10 +1,14 @@
 # LogGuard API
 
-LogGuard is a small security log-analysis service for SSH authentication logs. It parses failed-login activity, identifies suspicious IPs, and returns a JSON report through both a CLI and a FastAPI endpoint.
+LogGuard is a small security log-analysis project for SSH authentication logs.
+
+It reads log lines, counts failed login attempts, finds suspicious IP addresses, and returns a JSON report. I built it as both a command-line tool and a small FastAPI service.
 
 ## Why This Project Exists
 
-This project is built for the same kind of signal as a systems/security assessment:
+I wanted a project that connects to systems programming, security, and backend development.
+
+The main idea is:
 
 - parse noisy real-world log lines
 - detect suspicious failed-login patterns
@@ -86,7 +90,11 @@ docker build -t logguard-api .
 docker run -p 8000:8000 logguard-api
 ```
 
-## What This Shows
+## What I Practiced
 
-This repo demonstrates CLI design, API design, security-oriented parsing, structured output, tests, and Docker readiness in a compact project.
-
+- parsing text logs
+- writing a CLI tool
+- building a FastAPI endpoint
+- returning structured JSON
+- writing unit tests for parser and detector logic
+- using Docker for a simple backend service
