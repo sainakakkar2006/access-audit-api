@@ -1,22 +1,18 @@
 # LogGuard API
 
-LogGuard is a small security log-analysis project for SSH authentication logs.
+**Security log analysis for SSH authentication logs — as a CLI for one-off audits and a FastAPI service for continuous monitoring.**
 
-It reads log lines, counts failed login attempts, finds suspicious IP addresses, and returns a JSON report. I built it as both a command-line tool and a small FastAPI service.
+LogGuard parses raw, noisy `sshd` auth logs, detects suspicious failed-login patterns (brute-force attempts, credential spraying across usernames), and produces deterministic JSON reports that are safe to diff, alert on, or feed into a dashboard.
 
-## Why This Project Exists
+## Features
 
-I wanted a project that connects to systems programming, security, and backend development.
+- **Robust log parsing** — handles real-world `sshd` log lines, counts parsed vs. unparseable events instead of crashing on noise
+- **Suspicious-IP detection** — flags source IPs that cross a configurable failed-attempt threshold, with the usernames they targeted and a risk rating
+- **Deterministic JSON reports** — same input always produces the same report, so results are scriptable and testable
+- **Two interfaces, one engine** — the CLI and the REST API share the same analysis core
+- **Production trimmings** — unit-tested parser and detector logic, sample data, Dockerfile, CI via GitHub Actions
 
-The main idea is:
-
-- parse noisy real-world log lines
-- detect suspicious failed-login patterns
-- produce deterministic JSON reports
-- expose the logic through a CLI and an API
-- include tests, sample data, and Docker setup
-
-## Quick Start
+## Quick start
 
 ```bash
 python -m venv .venv
@@ -31,21 +27,7 @@ Analyze a sample log:
 logguard analyze samples/auth.log --threshold 3 --out reports/auth-report.json
 ```
 
-Run the API:
-
-```bash
-uvicorn logguard.api:app --reload
-```
-
-Then call:
-
-```bash
-curl -X POST http://127.0.0.1:8000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"threshold": 2, "lines": ["Apr 26 12:00:00 vm sshd[10]: Failed password for root from 203.0.113.4 port 53122 ssh2"]}'
-```
-
-## Report Example
+### Example report
 
 ```json
 {
@@ -64,24 +46,22 @@ curl -X POST http://127.0.0.1:8000/analyze \
 }
 ```
 
-## API
+## Run as a service
 
-### `GET /health`
-
-Returns service status.
-
-### `POST /analyze`
-
-Request body:
-
-```json
-{
-  "threshold": 3,
-  "lines": ["...auth log line..."]
-}
+```bash
+uvicorn logguard.api:app --reload
 ```
 
-Response body is the same JSON report produced by the CLI.
+```bash
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"threshold": 2, "lines": ["Apr 26 12:00:00 vm sshd[10]: Failed password for root from 203.0.113.4 port 53122 ssh2"]}'
+```
+
+| Endpoint        | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `GET /health`   | Service status                                     |
+| `POST /analyze` | Analyze log lines; returns the same JSON report as the CLI |
 
 ## Docker
 
@@ -90,11 +70,10 @@ docker build -t logguard-api .
 docker run -p 8000:8000 logguard-api
 ```
 
-## What I Practiced
+## Design notes
 
-- parsing text logs
-- writing a CLI tool
-- building a FastAPI endpoint
-- returning structured JSON
-- writing unit tests for parser and detector logic
-- using Docker for a simple backend service
+The analysis pipeline is split into a **parser** (raw line → structured event) and a **detector** (event stream → findings), each unit-tested independently. The CLI and FastAPI layers are thin adapters over that core, so behavior can't drift between the two interfaces — a pattern that keeps security tooling auditable.
+
+## License
+
+MIT
