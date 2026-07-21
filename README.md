@@ -12,7 +12,7 @@
   <!-- BADGES:END -->
 </p>
 
-# LogGuard API
+# logguard-api
 
 Author: Saina Kakkar
 
@@ -39,17 +39,6 @@ The parser and the detector are separate, unit-tested pieces. The CLI and
 the API are thin adapters over that same core, so the two interfaces cannot
 drift apart in behavior. For a security tool I wanted the analysis to be
 auditable in one place.
-
-## Key Features
-
-- Handles real-world `sshd` log lines and counts parsed vs. unparseable
-  events instead of crashing on noise
-- Flags source IPs that cross a configurable failed-attempt threshold, with
-  the usernames they targeted and a risk rating
-- Same input always produces the same report, so results are scriptable and
-  testable
-- Unit-tested parser and detector logic, sample data, a Dockerfile, and CI
-  via GitHub Actions
 
 ## Quick Start
 
@@ -92,9 +81,41 @@ Note `total_lines: 8` vs `parsed_events: 7`. One line in the sample is
 garbage on purpose. The report tells you how much of the log the tool
 actually understood, instead of pretending it saw everything.
 
+## CLI Reference
+
+The `analyze` subcommand options:
+
+| Argument | Default | What it does |
+|---|---|---|
+| `logfile` | (required) | Path to an `auth.log`-style file |
+| `--threshold` | `5` | Failed-login count per IP that counts as suspicious |
+| `--year` | `2026` | Year to attach to syslog timestamps |
+| `--out` | none | Write the JSON report to a file |
+
+The `--year` flag exists because of a real syslog quirk: classic syslog
+timestamps look like `Apr 26 12:00:00` and do not contain a year at all.
+The parser has to attach one from somewhere, so it is explicit and
+configurable instead of silently assuming.
+
+## How the Risk Rating Works
+
+Each suspicious IP gets a rating based on how far past the threshold it is:
+
+| Rating | Condition (with `--threshold N`) |
+|---|---|
+| `low` | fewer than N failed attempts (not reported as suspicious) |
+| `medium` | N or more failed attempts |
+| `high` | 3×N or more failed attempts |
+
+So in the example above, 3 failed attempts with `--threshold 3` lands
+exactly on `medium`. With the default threshold of 5, the same IP would not
+be flagged at all. There is no single right threshold: three failures from
+one IP is suspicious on a small personal server and completely normal on a
+busy one, which is why it is a flag and not a constant.
+
 ## Run as a Service
 
-Prefer an API over a CLI? The same engine runs behind FastAPI:
+The same engine also runs behind FastAPI:
 
 ```bash
 uvicorn logguard.api:app --reload
@@ -118,6 +139,18 @@ docker build -t logguard-api .
 docker run -p 8000:8000 logguard-api
 ```
 
+## Project Layout
+
+```
+src/logguard/
+  parser.py     raw sshd line -> structured event (or counted as unparseable)
+  detector.py   event stream -> suspicious IPs with risk ratings
+  cli.py        the analyze subcommand
+  api.py        FastAPI wrapper (GET /health, POST /analyze)
+samples/        example auth.log with planted attack patterns
+tests/          parser, detector, API, and CLI tests
+```
+
 ## Verify
 
 ```bash
@@ -130,10 +163,11 @@ pytest
   which meant one weird log line killed a whole audit. Real auth logs are
   full of lines that are not login events. Now unknown lines are counted and
   skipped, and the parsed vs. unparseable numbers go into the report.
-- The threshold is configurable because there is no single right answer.
-  Three failed attempts from one IP is suspicious on a small personal
-  server and completely normal on a busy one.
+- Credential spraying (one IP trying a few passwords across many usernames)
+  is why each suspicious IP reports the list of usernames it targeted, not
+  only a count. Two usernames from one IP, like `admin` and `root` in the
+  example, is a different story than twenty failures on one account.
 
 ## License
 
-MIT
+MIT. See the [LICENSE](LICENSE) file.
