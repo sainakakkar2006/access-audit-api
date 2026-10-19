@@ -4,6 +4,7 @@
 
 <p align="center">
   <!-- BADGES:START -->
+  <a href="https://github.com/sainakakkar2006/access-audit-api/actions/workflows/tests.yml"><img alt="tests" src="https://github.com/sainakakkar2006/access-audit-api/actions/workflows/tests.yml/badge.svg"></a>
   <a href="#"><img alt="Python" src="https://img.shields.io/badge/python-3.9%2B-blue"></a>
   <a href="#"><img alt="FastAPI" src="https://img.shields.io/badge/fastapi-009688?logo=fastapi&logoColor=white"></a>
   <a href="#"><img alt="Docker" src="https://img.shields.io/badge/docker-%230db7ed.svg?&style=flat&logo=docker&logoColor=white"></a>
@@ -17,7 +18,8 @@
 Author: Saina Kakkar
 
 ### Project Description
-LogGuard is security log analysis for SSH authentication logs. You can use
+LogGuard (the name on my resume, and still the name of the Python package
+and CLI) is security log analysis for SSH authentication logs. You can use
 it as a CLI for one-off audits or as a FastAPI service for continuous
 monitoring.
 
@@ -58,22 +60,34 @@ auditable in one place.
 
 ### Example Report
 
-This is the actual output for the bundled sample log:
+This is the actual output for the bundled sample log, with the per-event
+`events` list cut out to keep it short:
 
 ```json
 {
-  "total_lines": 8,
-  "parsed_events": 7,
-  "failed_logins": 5,
   "accepted_logins": 1,
+  "failed_logins": 6,
+  "parsed_events": 7,
   "suspicious_ips": [
     {
-      "ip": "203.0.113.4",
       "failed_attempts": 3,
-      "usernames": ["admin", "root"],
-      "risk": "medium"
+      "ip": "203.0.113.4",
+      "risk": "medium",
+      "usernames": ["admin", "root"]
+    },
+    {
+      "failed_attempts": 3,
+      "ip": "192.0.2.9",
+      "risk": "medium",
+      "usernames": ["test"]
     }
-  ]
+  ],
+  "top_usernames": [
+    {"failed_attempts": 3, "username": "test"},
+    {"failed_attempts": 2, "username": "root"},
+    {"failed_attempts": 1, "username": "admin"}
+  ],
+  "total_lines": 8
 }
 ```
 
@@ -154,7 +168,7 @@ tests/          parser, detector, API, and CLI tests
 ## Verify
 
 ```bash
-pytest
+pytest   # 9 tests: parser, detector, CLI, API
 ```
 
 ## Additional Notes
