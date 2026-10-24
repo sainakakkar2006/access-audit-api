@@ -21,7 +21,9 @@ def analyze_lines(lines: Iterable[str], *, threshold: int = 5, year: int = 2026)
         if event is not None:
             events.append(event)
 
-    failed_events = [event for event in events if event.outcome in FAILED_OUTCOMES]
+    failed_events = _drop_duplicate_invalid_user(
+        [event for event in events if event.outcome in FAILED_OUTCOMES]
+    )
     accepted_events = [event for event in events if event.outcome == "accepted"]
     failures_by_ip = Counter(event.ip for event in failed_events)
     users_by_ip: dict[str, Counter[str]] = defaultdict(Counter)
@@ -52,6 +54,24 @@ def analyze_lines(lines: Iterable[str], *, threshold: int = 5, year: int = 2026)
         ],
         "events": [event.to_dict() for event in events],
     }
+
+
+def _drop_duplicate_invalid_user(failed_events: list[AuthEvent]) -> list[AuthEvent]:
+    # sshd logs one bad guess at a nonexistent user twice: "Invalid user X from IP port P"
+    # and then "Failed password for invalid user X from IP port P". Keep only the second.
+    password_failures = {
+        (event.ip, event.port, event.username)
+        for event in failed_events
+        if event.outcome == "invalid_user_failed"
+    }
+    return [
+        event
+        for event in failed_events
+        if not (
+            event.outcome == "invalid_user"
+            and (event.ip, event.port, event.username) in password_failures
+        )
+    ]
 
 
 def _risk_level(count: int, threshold: int) -> str:
