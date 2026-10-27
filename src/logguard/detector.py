@@ -48,6 +48,7 @@ def analyze_lines(lines: Iterable[str], *, threshold: int = 5, year: int = 2026)
         "failed_logins": len(failed_events),
         "accepted_logins": len(accepted_events),
         "suspicious_ips": suspicious_ips,
+        "logins_after_failures": _logins_after_failures(events, failed_events, threshold),
         "top_usernames": [
             {"username": username, "failed_attempts": count}
             for username, count in Counter(event.username for event in failed_events).most_common(5)
@@ -72,6 +73,29 @@ def _drop_duplicate_invalid_user(failed_events: list[AuthEvent]) -> list[AuthEve
             and (event.ip, event.port, event.username) in password_failures
         )
     ]
+
+
+def _logins_after_failures(
+    events: list[AuthEvent], failed_events: list[AuthEvent], threshold: int
+) -> list[dict]:
+    # A successful login from an IP that had already failed `threshold` times is the
+    # moment a brute-force attempt may have worked. Only failures before the login count.
+    counted = {id(event) for event in failed_events}
+    failures_so_far: Counter[str] = Counter()
+    findings = []
+    for event in events:
+        if id(event) in counted:
+            failures_so_far[event.ip] += 1
+        elif event.outcome == "accepted" and failures_so_far[event.ip] >= threshold:
+            findings.append(
+                {
+                    "ip": event.ip,
+                    "username": event.username,
+                    "accepted_at": event.timestamp,
+                    "failures_before": failures_so_far[event.ip],
+                }
+            )
+    return findings
 
 
 def _risk_level(count: int, threshold: int) -> str:
