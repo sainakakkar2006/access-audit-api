@@ -65,9 +65,17 @@ This is the actual output for the bundled sample log, with the per-event
 
 ```json
 {
-  "accepted_logins": 1,
+  "accepted_logins": 2,
   "failed_logins": 6,
-  "parsed_events": 7,
+  "logins_after_failures": [
+    {
+      "accepted_at": "2026-04-26T12:00:09",
+      "failures_before": 3,
+      "ip": "203.0.113.4",
+      "username": "root"
+    }
+  ],
+  "parsed_events": 8,
   "suspicious_ips": [
     {
       "failed_attempts": 3,
@@ -87,13 +95,19 @@ This is the actual output for the bundled sample log, with the per-event
     {"failed_attempts": 2, "username": "root"},
     {"failed_attempts": 1, "username": "admin"}
   ],
-  "total_lines": 8
+  "total_lines": 9
 }
 ```
 
-Note `total_lines: 8` vs `parsed_events: 7`. One line in the sample is
+Note `total_lines: 9` vs `parsed_events: 8`. One line in the sample is
 garbage on purpose. The report tells you how much of the log the tool
 actually understood, instead of pretending it saw everything.
+
+`logins_after_failures` is the finding to read first. `203.0.113.4` failed
+three times and then logged in as `root`. A pile of failures is noise on
+most servers, but a success right after them may mean the guessing worked.
+Only failures that happened before the login count, so a user who logs in
+and then mistypes a password later is not flagged.
 
 ## CLI Reference
 
@@ -158,7 +172,7 @@ docker run -p 8000:8000 logguard-api
 ```
 src/logguard/
   parser.py     raw sshd line -> structured event (or counted as unparseable)
-  detector.py   event stream -> suspicious IPs with risk ratings
+  detector.py   event stream -> suspicious IPs, risk ratings, logins after failures
   cli.py        the analyze subcommand
   api.py        FastAPI wrapper (GET /health, POST /analyze)
 samples/        example auth.log with planted attack patterns
@@ -168,7 +182,7 @@ tests/          parser, detector, API, and CLI tests
 ## Verify
 
 ```bash
-pytest   # 9 tests: parser, detector, CLI, API
+pytest   # 14 tests: parser, detector, CLI, API
 ```
 
 ## Additional Notes
